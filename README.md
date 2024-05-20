@@ -5,9 +5,10 @@ mod tests {
 
     #[test]
     fn it_works() {
-        //-1 no exist
-        //-2 not absolte
-        //-3 no permission
+        //1 no exist
+        //2 not absolte
+        //3 no permission
+        //4 already exist
         process_input::change_name::exchange(
             String::from(r"PATH1"),
             String::from(r"PATH2"),
