@@ -3,36 +3,45 @@ pub mod process_input {
         use std::{ffi::OsStr, path::PathBuf};
 
         pub fn if_exist(path1: &PathBuf, path2: &PathBuf) -> (bool, bool) {
+            // 核验用户输入是否存在
             (!path1.exists(), !path2.exists())
         }
 
         pub fn if_relative(path1: &PathBuf, path2: &PathBuf) -> (bool, bool) {
+            //核验用户输入是否为绝对路径
             (path1.is_relative(), path2.is_relative())
         }
 
         pub fn if_file(path1: &PathBuf, path2: &PathBuf) -> (bool, bool) {
+            //输入的文件类型是否为文件夹
             (path1.is_file(), path2.is_file())
         }
 
         pub fn get_info(file_path: &PathBuf) -> (String, String, PathBuf) {
+            //获取文件名称（无后缀）、后缀、所在文件夹（父文件夹）
             let get_string_closure = |x: &Option<&OsStr>, y: bool| {
                 let mut tmp = String::from(".");
                 match x {
                     Some(i) => {
                         if y {
+                            //是否在计算后缀，如果不是，去掉一开始的“.”
                             tmp.push_str(i.to_str().unwrap());
                             tmp
                         } else {
                             i.to_str().unwrap().to_string()
                         }
                     }
+                    /*
+                    取不到就无视
+                    因前面已经核验完毕，所以此处如果出现Err则是特殊文件命名所致，不影响后面所有操作。
+                    e.g. "C:\\.cargo\\.config"，该文件取不到后缀，该文件夹也取不到后缀
+                    */
                     None => String::new(),
                 }
             };
+
             let name = get_string_closure(&file_path.file_stem(), false);
-
             let ext = get_string_closure(&file_path.extension(), true);
-
             let dir = match &file_path.parent() {
                 Some(i) => i.to_path_buf(),
                 None => PathBuf::new(),
@@ -41,6 +50,8 @@ pub mod process_input {
         }
 
         pub fn if_root(path1: &PathBuf, path2: &PathBuf) -> u8 {
+            //检测是否存在包含关系（父子目录问题）
+            //下面必须统一取小写或大写，因为rust的“contains()”大小写敏感
             let path1 = path1.to_string_lossy().to_ascii_lowercase();
             let path2 = path2.to_string_lossy().to_ascii_lowercase();
 
@@ -58,15 +69,18 @@ pub mod process_input {
     }
 
     pub mod change_name {
+        //改名的主体
         use std::fs;
         use std::{path::PathBuf, process::exit};
 
         use super::metadata_get::{self, if_root};
 
         fn make_name(dir: PathBuf, mut other_name: String, ext: String) -> (PathBuf, PathBuf) {
+            //获取临时文件名与改后文件名
             let mut new_name = dir.clone();
             let mut new_pre_name = dir;
 
+            //任意长字符串用作区分
             let mut temp_additional_name = String::from("E9EAE3BB7E262210FF2B");
             temp_additional_name.push_str(&ext);
             new_pre_name.push(&temp_additional_name);
@@ -89,13 +103,10 @@ pub mod process_input {
             tmp_name2: PathBuf,
             relevant: bool,
         ) {
+            //改名具体执行部分
             //1 first
-            println!("4\n\nPath1: {:?}\nFinal1: {:?}", path1, final_name1);
-            println!(
-                "Path2: {:?}\nFinal2: {:?}\nTmp2: {:?}",
-                path2, final_name2, tmp_name2
-            );
             if relevant {
+                //如果存在相关性（父子目录或文件），后面的exit(3)是为了核验是否有权限改名
                 let _ = fs::rename(&path1, &final_name1).unwrap_or_else(|_err| {
                     exit(3);
                 });
@@ -103,6 +114,7 @@ pub mod process_input {
                     exit(3);
                 });
             } else {
+                //不存在相关性：正常操作
                 let _ = fs::rename(&path2, &tmp_name2).unwrap_or_else(|_err| {
                     exit(3);
                 });
@@ -115,6 +127,7 @@ pub mod process_input {
 
         #[no_mangle]
         pub extern "C" fn exchange(path1: String, path2: String) {
+            //核验用户输入
             let dir_check = |s: String| {
                 let s = PathBuf::from(s);
                 if s.ends_with("\"") {
@@ -131,7 +144,7 @@ pub mod process_input {
             };
             let path1 = dir_check(path1);
             let path2 = dir_check(path2);
-            println!("1{:?}, {:?}\n", path1, path2);
+
             let (no_exist1, no_exist2) = metadata_get::if_exist(&path1, &path2);
             if no_exist1 || no_exist2 {
                 exit(1);
@@ -149,36 +162,34 @@ pub mod process_input {
             let (pre_name2, new_name2) = make_name(dir_2, name_1, ext_2);
 
             let mode = if_root(&path1, &path2);
-            println!("rel mode: {}", &mode);
 
             if is_file1 && is_file2 {
+                //all files
                 rename_each(path1, new_name1, path2, new_name2, pre_name2, false);
             } else if (!is_file1) && (!is_file2) {
-                //all dir
+                //all dirs
                 if mode == 1 {
-                    //if file1 contains file2
-                    println!("mode1");
+                    //file1 contains file2
                     rename_each(path1, new_name1, path2, new_name2, pre_name2, true);
                 } else if mode == 2 {
-                    //if file1 contains file2
-                    println!("mode2");
+                    //file2 contains file1
                     rename_each(path2, new_name2, path1, new_name1, pre_name1, true);
                 } else {
-                    println!("mode0");
-                    //if file2 contains file1 or no contains
+                    //no contains
                     rename_each(path2, new_name2, path1, new_name1, pre_name1, false);
                 }
             } else {
+                // one file and one dir
                 if is_file1 {
+                    //1 is file and 2 is dir so impossible 1 contains 2
                     if mode == 1 {
                         //file1 rename first
-                        println!("mode1");
                         rename_each(path1, new_name1, path2, new_name2, pre_name2, true);
                     } else {
-                        println!("mode0/2");
                         rename_each(path1, new_name1, path2, new_name2, pre_name2, false);
                     }
                 } else {
+                    //same
                     if mode == 2 {
                         println!("mode2");
                         //file2 rename first
@@ -205,8 +216,8 @@ mod tests {
         //3 no permission
         //4 already exist
         process_input::change_name::exchange(
-            String::from(r"D:\aardio\新建 DOCX 文档.dll"),
-            String::from(r"d:\aardio\新建有3 文件夹\塞.docx"),
+            String::from(r"PATH1"),
+            String::from(r"PATH2"),
         );
     }
 }
