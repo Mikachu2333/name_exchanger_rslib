@@ -74,6 +74,10 @@ pub mod process_input {
             other_name.push_str(&ext);
             new_name.push(&other_name);
 
+            if new_name.exists() || new_pre_name.exists() {
+                exit(4);
+            }
+
             (new_pre_name, new_name)
         }
 
@@ -93,17 +97,17 @@ pub mod process_input {
             );
             if relevant {
                 let _ = fs::rename(&path1, &final_name1).unwrap_or_else(|_err| {
-                    exit(-3);
+                    exit(3);
                 });
                 let _ = fs::rename(&path2, &final_name2).unwrap_or_else(|_err| {
-                    exit(-3);
+                    exit(3);
                 });
             } else {
                 let _ = fs::rename(&path2, &tmp_name2).unwrap_or_else(|_err| {
-                    exit(-3);
+                    exit(3);
                 });
                 let _ = fs::rename(&path1, &final_name1).unwrap_or_else(|_err| {
-                    exit(-3);
+                    exit(3);
                 });
                 let _ = fs::rename(&tmp_name2, &final_name2);
             }
@@ -130,11 +134,11 @@ pub mod process_input {
             println!("1{:?}, {:?}\n", path1, path2);
             let (no_exist1, no_exist2) = metadata_get::if_exist(&path1, &path2);
             if no_exist1 || no_exist2 {
-                exit(-1);
+                exit(1);
             }
             let (re_1, re_2) = metadata_get::if_relative(&path1, &path2);
             if re_1 || re_2 {
-                exit(-2);
+                exit(2);
             }
 
             let (is_file1, is_file2) = metadata_get::if_file(&path1, &path2);
@@ -145,7 +149,7 @@ pub mod process_input {
             let (pre_name2, new_name2) = make_name(dir_2, name_1, ext_2);
 
             let mode = if_root(&path1, &path2);
-            println!("rel mode: {}",&mode);
+            println!("rel mode: {}", &mode);
 
             if is_file1 && is_file2 {
                 rename_each(path1, new_name1, path2, new_name2, pre_name2, false);
@@ -196,9 +200,10 @@ mod tests {
 
     #[test]
     fn it_works() {
-        //-1 no exist
-        //-2 not absolte
-        //-3 no permission
+        //1 no exist
+        //2 not absolte
+        //3 no permission
+        //4 already exist
         process_input::change_name::exchange(
             String::from(r"D:\aardio\新建 DOCX 文档.dll"),
             String::from(r"d:\aardio\新建有3 文件夹\塞.docx"),
