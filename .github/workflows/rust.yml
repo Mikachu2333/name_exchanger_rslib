@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: New files
+      run: cat PATH1.tex;cat PATH2.doc
     - name: Build
       run: cargo build -r --verbose
     - name: Run tests
