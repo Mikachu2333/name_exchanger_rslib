@@ -133,7 +133,7 @@ mod process_input {
             }
         }
 
-        pub fn exchange(path1: String, path2: String)->u8{
+        pub fn exchange(path1: String, path2: String)->u8 {
             //核验用户输入
             let dir_check = |s: String| {
                 let s = PathBuf::from(s);
@@ -146,4 +146,85 @@ mod process_input {
                     };
                     PathBuf::from(s)
                 } else {
-       
+                    PathBuf::from(s)
+                }
+            };
+            let path1 = dir_check(path1);
+            let path2 = dir_check(path2);
+
+            let (no_exist1, no_exist2) = metadata_get::if_exist(&path1, &path2);
+            if no_exist1 || no_exist2 {
+                exit(1);
+            }
+            let (re_1, re_2) = metadata_get::if_relative(&path1, &path2);
+            if re_1 || re_2 {
+                exit(2);
+            }
+
+            let (is_file1, is_file2) = metadata_get::if_file(&path1, &path2);
+            let (name_1, ext_1, dir_1) = metadata_get::get_info(&path1);
+            let (name_2, ext_2, dir_2) = metadata_get::get_info(&path2);
+
+            let (pre_name1, new_name1) = make_name(dir_1, name_2, ext_1);
+            let (pre_name2, new_name2) = make_name(dir_2, name_1, ext_2);
+
+            let mode = if_root(&path1, &path2);
+
+            if is_file1 && is_file2 {
+                //all files
+                rename_each(path1, new_name1, path2, new_name2, pre_name2, false)
+            } else if (!is_file1) && (!is_file2) {
+                //all dirs
+                if mode == 1 {
+                    //file1 contains file2
+                    rename_each(path1, new_name1, path2, new_name2, pre_name2, true)
+                } else if mode == 2 {
+                    //file2 contains file1
+                    rename_each(path2, new_name2, path1, new_name1, pre_name1, true)
+                } else {
+                    //no contains
+                    rename_each(path2, new_name2, path1, new_name1, pre_name1, false)
+                }
+            } else {
+                // one file and one dir
+                if is_file1 {
+                    //1 is file and 2 is dir so impossible 1 contains 2
+                    if mode == 1 {
+                        //file1 rename first
+                        rename_each(path1, new_name1, path2, new_name2, pre_name2, true)
+                    } else {
+                        rename_each(path1, new_name1, path2, new_name2, pre_name2, false)
+                    }
+                } else {
+                    //same
+                    if mode == 2 {
+                        println!("mode2");
+                        //file2 rename first
+                        rename_each(path2, new_name2, path1, new_name1, pre_name1, true)
+                    } else {
+                        println!("mode0/1");
+                        //file2 rename first
+                        rename_each(path2, new_name2, path1, new_name1, pre_name1, false)
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        //1 no exist
+        //2 not absolte
+        //3 no permission
+        //4 already exist
+        process_input::change_name::exchange(
+            String::from(r"PATH1"),
+            String::from(r"PATH2"),
+        );
+    }
+}
