@@ -1,14 +1,14 @@
 #[no_mangle]
-pub extern fn exchange_input(input1:String,input2:String)->i8{
-    use process_input::change_name::exchange;
-        return exchange(input1,input2);
+pub extern "C" fn exchange_inputs(input1: String, input2: String) -> String {
+    let result_num = process_input::change_name::exchange(input1, input2);
+    process_input::show_error::switch_error_msg(result_num)
 }
 
-mod process_input {
+pub mod process_input {
     pub mod metadata_get {
         use std::{ffi::OsStr, path::PathBuf};
 
-        pub fn if_exist(path1: &PathBuf, path2: &PathBuf) -> (bool, bool) {
+        pub fn if_no_exist(path1: &PathBuf, path2: &PathBuf) -> (bool, bool) {
             // 核验用户输入是否存在
             (!path1.exists(), !path2.exists())
         }
@@ -76,8 +76,8 @@ mod process_input {
 
     pub mod change_name {
         //改名的主体
-        use std::fs;
-        use std::{path::PathBuf, process::exit};
+        use std::path::PathBuf;
+        use std::{fs, io};
 
         use super::metadata_get::{self, if_root};
 
@@ -94,10 +94,6 @@ mod process_input {
             other_name.push_str(&ext);
             new_name.push(&other_name);
 
-            if new_name.exists() || new_pre_name.exists() {
-                exit(4);
-            }
-
             (new_pre_name, new_name)
         }
 
@@ -108,33 +104,60 @@ mod process_input {
             final_name2: PathBuf,
             tmp_name2: PathBuf,
             relevant: bool,
-        )->i8{
+        ) -> u8 {
             //改名具体执行部分
+            let get_err_or_ok = |x: io::Result<()>| -> u8 {
+                match x {
+                    Ok(_) => 0,
+                    Err(x) => match x.kind() {
+                        io::ErrorKind::PermissionDenied => 3,
+                        io::ErrorKind::AlreadyExists => 4,
+                        _ => 255,
+                    },
+                }
+            };
             //1 first
             if relevant {
                 //如果存在相关性（父子目录或文件），后面的exit(3)是为了核验是否有权限改名
-                let _ = fs::rename(&path1, &final_name1).unwrap_or_else(|_err| {
-                    return 3;
-                });
-                let _ = fs::rename(&path2, &final_name2).unwrap_or_else(|_err| {
-                    return 3;
-                });
-                return 0;
+                let rename_1_result = get_err_or_ok(fs::rename(&path1, &final_name1));
+                let rename_2_result = get_err_or_ok(fs::rename(&path2, &final_name2));
+                if rename_1_result != 0 {
+                    println!("FAILED: \n{:?} => {:?}", &path1, &final_name1);
+                    rename_1_result
+                } else if rename_2_result != 0 {
+                    println!("FAILED: \n{:?} => {:?}", &path2, &final_name2);
+                    rename_2_result
+                } else {
+                    println!("SUCCESS: \n{:?} => {:?}", &path1, &final_name1);
+                    println!("SUCCESS: \n{:?} => {:?}", &path2, &final_name2);
+                    0
+                }
             } else {
                 //不存在相关性：正常操作
-                let _ = fs::rename(&path2, &tmp_name2).unwrap_or_else(|_err| {
-                    return 3;
-                });
-                let _ = fs::rename(&path1, &final_name1).unwrap_or_else(|_err| {
-                    return 3;
-                });
-                let _ = fs::rename(&tmp_name2, &final_name2);
-                return 0;
+                let rename_1_result = get_err_or_ok(fs::rename(&path2, &tmp_name2));
+                let rename_2_result = get_err_or_ok(fs::rename(&path1, &final_name1));
+                let rename_3_result = get_err_or_ok(fs::rename(&tmp_name2, &final_name2));
+                if rename_1_result != 0 {
+                    println!("FAILED: \n{:?} => {:?}", &path2, &tmp_name2);
+                    rename_1_result
+                } else if rename_2_result != 0 {
+                    println!("FAILED: \n{:?} => {:?}", &path1, &final_name1);
+                    rename_2_result
+                } else if rename_3_result != 0 {
+                    println!("FAILED: \n{:?} => {:?}", &tmp_name2, &final_name2);
+                    rename_3_result
+                } else {
+                    println!("SUCCESS: \n{:?} => {:?}", &path2, &tmp_name2);
+                    println!("SUCCESS: \n{:?} => {:?}", &path1, &final_name1);
+                    println!("SUCCESS: \n{:?} => {:?}", &tmp_name2, &final_name2);
+                    0
+                }
             }
         }
 
-        pub fn exchange(path1: String, path2: String)->i8 {
-            //核验用户输入
+        pub fn exchange(path1: String, path2: String) -> u8 {
+            // 改名逻辑主体
+            // 核验用户输入
             let dir_check = |s: String| {
                 let s = PathBuf::from(s);
                 if s.ends_with("\"") {
@@ -152,13 +175,13 @@ mod process_input {
             let path1 = dir_check(path1);
             let path2 = dir_check(path2);
 
-            let (no_exist1, no_exist2) = metadata_get::if_exist(&path1, &path2);
+            let (no_exist1, no_exist2) = metadata_get::if_no_exist(&path1, &path2);
             if no_exist1 || no_exist2 {
-                exit(1);
+                return 1;
             }
             let (re_1, re_2) = metadata_get::if_relative(&path1, &path2);
             if re_1 || re_2 {
-                exit(2);
+                return 2;
             }
 
             let (is_file1, is_file2) = metadata_get::if_file(&path1, &path2);
@@ -167,6 +190,11 @@ mod process_input {
 
             let (pre_name1, new_name1) = make_name(dir_1, name_2, ext_1);
             let (pre_name2, new_name2) = make_name(dir_2, name_1, ext_2);
+            //println!("{:?} {:?}", &new_name1, &new_name2); //test
+            let (exist_new_1, exist_new_2) = metadata_get::if_no_exist(&new_name1, &new_name2);
+            if (!exist_new_1) || (!exist_new_2) {
+                return 4;
+            }
 
             let mode = if_root(&path1, &path2);
 
@@ -198,15 +226,26 @@ mod process_input {
                 } else {
                     //same
                     if mode == 2 {
-                        println!("mode2");
                         //file2 rename first
                         rename_each(path2, new_name2, path1, new_name1, pre_name1, true)
                     } else {
-                        println!("mode0/1");
                         //file2 rename first
                         rename_each(path2, new_name2, path1, new_name1, pre_name1, false)
                     }
                 }
+            }
+        }
+    }
+    pub mod show_error {
+        pub fn switch_error_msg(num: u8) -> String {
+            match num {
+                0 => String::from("\nALL SUCCESS!"),
+                1 => String::from("\nFAILED: \nInput paths not exist."),
+                2 => String::from("\nFAILED: \nInput paths are not absoltue path."),
+                3 => String::from("\nFAILED: \nNo permission to rename files."),
+                4 => String::from("\nFAILED: \nThere are files with the same name you want to use in the folder already."),
+                255 => String::from("\nFAILED: \nUNKNOWN ERROR when rename."),
+                _ => String::from("\nFAILED: \nUNKNOWN ERROR"),
             }
         }
     }
@@ -215,16 +254,35 @@ mod process_input {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs::remove_file;
 
+    fn clear_olds(test_path1: &String, test_path2: &String) {
+        let test_new_path1 = String::from("file2.ext1");
+        let test_new_path2 = String::from("file1.ext2");
+
+        let _ = remove_file(&test_path1);
+        let _ = remove_file(&test_path2);
+        let _ = remove_file(&test_new_path1);
+        let _ = remove_file(&test_new_path2);
+
+        let mut new_file1 = std::fs::File::create(&test_path1).unwrap();
+        let mut new_file2 = std::fs::File::create(&test_path2).unwrap();
+        let _ = std::io::Write::write_all(&mut new_file1, b"");
+        let _ = std::io::Write::write_all(&mut new_file2, b"");
+    }
     #[test]
-    fn it_works()->i8{
+    fn it_works() {
         //1 no exist
         //2 not absolte
         //3 no permission
         //4 already exist
-        exchange_input(
-            String::from(r"PATH1"),
-            String::from(r"PATH2"),
-        )
+        //255 unknown error
+        let test_path1 = String::from("D:\\languagelearning\\Rust\\exchange_name_lib\\file1.ext1");
+        let test_path2 = String::from("D:\\languagelearning\\Rust\\exchange_name_lib\\file2.ext2");
+
+        clear_olds(&test_path1, &test_path2);
+
+        let run_result = exchange_inputs(test_path1, test_path2);
+        println!("{}", run_result);
     }
 }
