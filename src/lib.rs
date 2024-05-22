@@ -1,5 +1,5 @@
 #[no_mangle]
-pub extern fn exchange_input(input1:String,input2:String)->u8{
+pub extern fn exchange_input(input1:String,input2:String)->i8{
     use process_input::change_name::exchange;
         return exchange(input1,input2);
 }
@@ -108,7 +108,7 @@ mod process_input {
             final_name2: PathBuf,
             tmp_name2: PathBuf,
             relevant: bool,
-        )->u8{
+        )->i8{
             //改名具体执行部分
             //1 first
             if relevant {
@@ -133,7 +133,7 @@ mod process_input {
             }
         }
 
-        pub fn exchange(path1: String, path2: String)->u8 {
+        pub fn exchange(path1: String, path2: String)->i8 {
             //核验用户输入
             let dir_check = |s: String| {
                 let s = PathBuf::from(s);
@@ -217,7 +217,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works()->u8{
+    fn it_works()->i8{
         //1 no exist
         //2 not absolte
         //3 no permission
