@@ -1,11 +1,23 @@
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
+
 #[no_mangle]
-pub extern "C" fn exchange_inputs(input1: String, input2: String) -> String {
+pub extern "C" fn exchange_inputs(input1: *const c_char, input2: *const c_char) -> *mut c_char {
+    let input1 = unsafe { CStr::from_ptr(input1) }
+        .to_string_lossy()
+        .to_string();
+    let input2 = unsafe { CStr::from_ptr(input2) }
+        .to_string_lossy()
+        .to_string();
+    //println!("{} {}", &input1, &input2);
     let result_num = process_input::change_name::exchange(input1, input2);
-    process_input::show_error::switch_error_msg(result_num)
+    CString::new(process_input::show_error::switch_error_msg(result_num))
+        .unwrap()
+        .into_raw()
 }
 
-pub mod process_input {
-    pub mod metadata_get {
+pub(crate) mod process_input {
+    pub(crate) mod metadata_get {
         use std::{ffi::OsStr, path::PathBuf};
 
         pub fn if_no_exist(path1: &PathBuf, path2: &PathBuf) -> (bool, bool) {
@@ -74,7 +86,7 @@ pub mod process_input {
         }
     }
 
-    pub mod change_name {
+    pub(crate) mod change_name {
         //改名的主体
         use std::path::PathBuf;
         use std::{fs, io};
@@ -256,7 +268,9 @@ mod tests {
     use super::*;
     use std::fs::remove_file;
 
-    fn clear_olds(test_path1: &String, test_path2: &String) {
+    fn clear_olds() {
+        let test_path1 = String::from("file1.ext1");
+        let test_path2 = String::from("file2.ext2");
         let test_new_path1 = String::from("file2.ext1");
         let test_new_path2 = String::from("file1.ext2");
 
@@ -277,12 +291,22 @@ mod tests {
         //3 no permission
         //4 already exist
         //255 unknown error
-        let test_path1 = String::from("D:\\languagelearning\\Rust\\exchange_name_lib\\file1.ext1");
-        let test_path2 = String::from("D:\\languagelearning\\Rust\\exchange_name_lib\\file2.ext2");
 
-        clear_olds(&test_path1, &test_path2);
+        clear_olds();
 
-        let run_result = exchange_inputs(test_path1, test_path2);
+        let test_path1 =
+            CString::new("D:\\languagelearning\\Rust\\exchange_name_lib\\file1.ext1").unwrap();
+
+        let test_path2 =
+            CString::new("D:\\languagelearning\\Rust\\exchange_name_lib\\file2.ext2").unwrap();
+        let test_path1_ptr = test_path1.as_ptr() as *mut i8;
+        let test_path2_ptr = test_path2.as_ptr() as *mut i8;
+
+        let run_result = exchange_inputs(test_path1_ptr, test_path2_ptr);
+        let run_result = unsafe { CString::from_raw(run_result) }
+            .to_string_lossy()
+            .to_string();
         println!("{}", run_result);
+        ()
     }
 }
