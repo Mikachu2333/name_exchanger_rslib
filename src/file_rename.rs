@@ -79,7 +79,7 @@ impl NameExchange {
     }
 
     ///改名具体执行部分
-    pub fn rename_each(&self, is_nested: bool, file1_first: bool) -> u8 {
+    pub fn rename_each(&self, is_nested: bool, file1_first: bool) -> i32 {
         let mut path1 = self.f2.exchange.original_path.clone();
         let mut final_name1 = self.f2.exchange.new_path.clone();
         let mut path2 = self.f1.exchange.original_path.clone();
@@ -93,13 +93,13 @@ impl NameExchange {
             tmp_name2 = self.f2.exchange.pre_path.clone();
         }
 
-        let get_err_or_ok = |x: io::Result<()>| -> u8 {
+        let get_err_or_ok = |x: io::Result<()>| -> i32 {
             match x {
                 Ok(_) => 0,
                 Err(x) => match x.kind() {
-                    io::ErrorKind::PermissionDenied => 3,
-                    io::ErrorKind::AlreadyExists => 4,
-                    _ => 255,
+                    io::ErrorKind::PermissionDenied => return 2_i32,
+                    io::ErrorKind::AlreadyExists => return 3_i32,
+                    _ => return 255_i32,
                 },
             }
         };

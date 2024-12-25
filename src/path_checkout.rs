@@ -27,19 +27,30 @@ pub struct GetPathInfo {
 /// 所有路径相关的操作
 impl GetPathInfo {
     /// 校验路径是否存在；如果是相对路径，尝试转化为绝对路径
-    pub fn if_no_exist(&mut self, exe_path: &Path) -> (bool, bool) {
-        if self.path1.exists() && self.path1.is_relative() {
-            self.path1 = exe_path.join(self.path1.clone());
+    pub fn if_exist(&mut self, dir: &Path) -> (bool, bool) {
+        if self.path1.is_relative() {
+            self.path1 = dir.join(self.path1.clone().file_name().unwrap());
         }
-        if self.path2.exists() && self.path2.is_relative() {
-            self.path2 = exe_path.join(self.path2.clone());
+        if self.path2.is_relative() {
+            self.path2 = dir.join(self.path2.clone().file_name().unwrap());
         }
-        (!&self.path1.exists(), !&self.path2.exists())
+        /*
+        println!(
+            "Path1: {}\tPath2: {}",
+            self.path1.display(),
+            self.path2.display()
+        ); //test
+        */
+        (self.path1.exists(), self.path2.exists())
     }
 
     ///输入的文件类型是否为文件夹
     pub fn if_file(&self) -> (bool, bool) {
         (self.path1.is_file(), self.path2.is_file())
+    }
+
+    pub fn if_same_dir(&self) -> bool {
+        self.path1.parent().unwrap() == self.path2.parent().unwrap()
     }
 
     ///检测是否存在包含关系（父子目录问题）
