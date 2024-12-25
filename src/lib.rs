@@ -29,16 +29,7 @@ pub extern "C" fn exchange(path1: *const c_char, path2: *const c_char) -> i32 {
     let mut all_infos = NameExchange::new();
 
     // 用于校验文件夹路径最后是否为斜杠与双引号的闭包
-    let dir_check = |s: String| {
-        let mut s = s;
-        if s.ends_with("\"") {
-            s = s.strip_suffix("\"").unwrap().to_string()
-        };
-        if s.ends_with("\\") {
-            s = s.strip_suffix("\\").unwrap().to_string()
-        };
-        PathBuf::from(s)
-    };
+    let dir_check = |s: String| PathBuf::from(s.trim().trim_matches(['"', '\\', '\'']));
     let mut packed_path = GetPathInfo {
         path1: dir_check(path1),
         path2: dir_check(path2),
