@@ -46,7 +46,9 @@ pub extern "C" fn exchange(path1: *const c_char, path2: *const c_char) -> i32 {
     all_infos.f2.exchange.original_path = packed_path.path2.clone();
 
     (all_infos.f1.is_file, all_infos.f2.is_file) = packed_path.if_file();
-    (all_infos.f1.packed_info, all_infos.f2.packed_info) = packed_path.metadata_collect();
+
+    (all_infos.f1.packed_info, all_infos.f2.packed_info) =
+        packed_path.metadata_collect(all_infos.f1.is_file, all_infos.f2.is_file);
 
     (
         all_infos.f1.exchange.pre_path,
@@ -66,7 +68,6 @@ pub extern "C" fn exchange(path1: *const c_char, path2: *const c_char) -> i32 {
     );
 
     let mut packed_path_new = GetPathInfo {
-        //其实没必要mut
         path1: all_infos.f1.exchange.new_path.clone(),
         path2: all_infos.f2.exchange.new_path.clone(),
     };

@@ -72,15 +72,14 @@ impl GetPathInfo {
     }
 
     ///获取文件名称（无后缀）、后缀、所在文件夹（父文件夹）
-    fn get_info(file_path: &Path) -> MetadataCollection {
-        let get_string_closure = |x: &Option<&OsStr>, y: bool| {
-            let mut tmp = String::from(".");
-            match x {
+    fn get_info(file_path: &Path, is_file: bool) -> MetadataCollection {
+        //取文件名（String）格式，如果在取后缀则加“.”，此处还建有unwrap的功能
+        let get_string_closure = |original_result: &Option<&OsStr>, is_ext: bool| {
+            match original_result {
                 Some(i) => {
-                    if y {
+                    if is_ext {
                         //是否在计算后缀，如果不是，去掉一开始的“.”
-                        tmp.push_str(i.to_str().unwrap());
-                        tmp
+                        ".".to_owned() + i.to_str().unwrap()
                     } else {
                         i.to_str().unwrap().to_string()
                     }
@@ -94,23 +93,41 @@ impl GetPathInfo {
             }
         };
 
-        let name = get_string_closure(&file_path.file_stem(), false);
-        let ext = get_string_closure(&file_path.extension(), true);
-        let dir = match &file_path.parent() {
-            Some(i) => i.to_path_buf(),
-            None => PathBuf::new(),
-        };
-
-        MetadataCollection {
-            name,
-            ext,
-            parent_dir: dir,
+        if !is_file {
+            let name = get_string_closure(&file_path.file_stem(), false)
+                + get_string_closure(&file_path.extension(), true).as_ref();
+            let ext = String::new();
+            let dir = match &file_path.parent() {
+                Some(i) => i.to_path_buf(),
+                None => PathBuf::new(),
+            };
+            return MetadataCollection {
+                name,
+                ext,
+                parent_dir: dir,
+            };
+        } else {
+            let name = get_string_closure(&file_path.file_stem(), false);
+            let ext = get_string_closure(&file_path.extension(), true);
+            let dir = match &file_path.parent() {
+                Some(i) => i.to_path_buf(),
+                None => PathBuf::new(),
+            };
+            return MetadataCollection {
+                name,
+                ext,
+                parent_dir: dir,
+            };
         }
     }
 
-    pub fn metadata_collect(&self) -> (MetadataCollection, MetadataCollection) {
-        let metadata1 = GetPathInfo::get_info(&self.path1);
-        let metadata2 = GetPathInfo::get_info(&self.path2);
+    pub fn metadata_collect(
+        &self,
+        is_file1: bool,
+        is_file2: bool,
+    ) -> (MetadataCollection, MetadataCollection) {
+        let metadata1 = GetPathInfo::get_info(&self.path1, is_file1);
+        let metadata2 = GetPathInfo::get_info(&self.path2, is_file2);
         (metadata1, metadata2)
     }
 }
