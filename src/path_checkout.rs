@@ -73,7 +73,7 @@ impl GetPathInfo {
 
     ///获取文件名称（无后缀）、后缀、所在文件夹（父文件夹）
     fn get_info(file_path: &Path, is_file: bool) -> MetadataCollection {
-        //取文件名（String）格式，如果在取后缀则加“.”，此处还建有unwrap的功能
+        //取文件名（String）格式，如果在取后缀则加“.”，此处还兼有unwrap的功能
         let get_string_closure = |original_result: &Option<&OsStr>, is_ext: bool| {
             match original_result {
                 Some(i) => {
@@ -94,29 +94,29 @@ impl GetPathInfo {
         };
 
         if !is_file {
-            let name = get_string_closure(&file_path.file_stem(), false)
-                + get_string_closure(&file_path.extension(), true).as_ref();
-            let ext = String::new();
-            let dir = match &file_path.parent() {
-                Some(i) => i.to_path_buf(),
-                None => PathBuf::new(),
-            };
             return MetadataCollection {
-                name,
-                ext,
-                parent_dir: dir,
+                name: {
+                    get_string_closure(&file_path.file_stem(), false)
+                        + get_string_closure(&file_path.extension(), true).as_ref()
+                },
+                ext: String::new(),
+                parent_dir: {
+                    match &file_path.parent() {
+                        Some(i) => i.to_path_buf(),
+                        None => PathBuf::new(),
+                    }
+                },
             };
         } else {
-            let name = get_string_closure(&file_path.file_stem(), false);
-            let ext = get_string_closure(&file_path.extension(), true);
-            let dir = match &file_path.parent() {
-                Some(i) => i.to_path_buf(),
-                None => PathBuf::new(),
-            };
             return MetadataCollection {
-                name,
-                ext,
-                parent_dir: dir,
+                name: get_string_closure(&file_path.file_stem(), false),
+                ext: get_string_closure(&file_path.extension(), true),
+                parent_dir: {
+                    match &file_path.parent() {
+                        Some(i) => i.to_path_buf(),
+                        None => PathBuf::new(),
+                    }
+                },
             };
         }
     }

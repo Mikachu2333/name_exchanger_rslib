@@ -87,6 +87,21 @@ pub extern "C" fn exchange(path1: *const c_char, path2: *const c_char) -> i32 {
     //1 -> file1 should be renamed first
     let mode = packed_path.if_root();
 
+    /*
+    println!(//test
+        "f1: {}\t{}\t{}",
+        all_infos.f1.packed_info.parent_dir.display(),
+        all_infos.f1.packed_info.name,
+        all_infos.f1.packed_info.ext
+    );
+    println!(
+        "f2: {}\t{}\t{}",
+        all_infos.f2.packed_info.parent_dir.display(),
+        all_infos.f2.packed_info.name,
+        all_infos.f2.packed_info.ext
+    );
+    */
+    
     if all_infos.f1.is_file & all_infos.f2.is_file {
         //all files
         NameExchange::rename_each(&all_infos, false, true)

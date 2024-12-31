@@ -3,6 +3,8 @@ use std::{fs, io};
 
 use crate::path_checkout::MetadataCollection;
 
+const GUID: &str = "2A96D0978ECC9709298A";
+
 #[derive(Debug)]
 pub struct PrepareName {
     pub original_path: PathBuf,
@@ -67,7 +69,7 @@ impl NameExchange {
         let mut new_name = dir.to_path_buf(); //C:/    (a)
 
         //任意长字符串用作区分
-        let mut temp_additional_name = String::from("E9EAE3BB7E262210FF2B");
+        let mut temp_additional_name = GUID.to_string();
         temp_additional_name.push_str(&ext); //AAAAA.txt
         dir.push(&temp_additional_name); //C:/AAAAA.txt    (b)
         let new_pre_name = dir.to_path_buf();
@@ -110,14 +112,14 @@ impl NameExchange {
             let rename_2_result = get_err_or_ok(fs::rename(&path2, &final_name2));
             if rename_1_result != 0 {
                 println!("FAILED: \n{:?} => {:?}", &path1, &final_name1);
-                rename_1_result
+                return rename_1_result;
             } else if rename_2_result != 0 {
                 println!("FAILED: \n{:?} => {:?}", &path2, &final_name2);
-                rename_2_result
+                return rename_2_result;
             } else {
                 println!("SUCCESS: \n{:?} => {:?}", &path1, &final_name1);
                 println!("SUCCESS: \n{:?} => {:?}", &path2, &final_name2);
-                0
+                return 0;
             }
         } else {
             //不存在相关性：正常操作
@@ -126,18 +128,18 @@ impl NameExchange {
             let rename_3_result = get_err_or_ok(fs::rename(&tmp_name2, &final_name2));
             if rename_1_result != 0 {
                 println!("FAILED: \n{:?} => {:?}", &path2, &tmp_name2);
-                rename_1_result
+                return rename_1_result;
             } else if rename_2_result != 0 {
                 println!("FAILED: \n{:?} => {:?}", &path1, &final_name1);
-                rename_2_result
+                return rename_2_result;
             } else if rename_3_result != 0 {
                 println!("FAILED: \n{:?} => {:?}", &tmp_name2, &final_name2);
-                rename_3_result
+                return rename_3_result;
             } else {
                 println!("SUCCESS: \n{:?} => {:?}", &path2, &tmp_name2);
                 println!("SUCCESS: \n{:?} => {:?}", &path1, &final_name1);
                 println!("SUCCESS: \n{:?} => {:?}", &tmp_name2, &final_name2);
-                0
+                return 0;
             }
         }
     }
